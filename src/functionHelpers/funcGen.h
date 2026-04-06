@@ -16,7 +16,7 @@ struct Smooth3DFunction {
 // TODO: find something nice to look at
 template<typename T>
 constexpr T randomFunction(T x, T z) {
-    return std::pow(std::sin(x), 2) - std::cos(z);
+    return std::abs(std::pow(std::sin(x), 2) - std::cos(z));
 }
 
 
@@ -27,7 +27,7 @@ inline __uint32_t id(__uint32_t i, __uint32_t j, __uint32_t nx) { return i + j *
 // Basically, a very simple version of numpy's linspace(...)
 template<typename T>
 inline std::vector<T> linspace(T start, T end, __uint32_t count) {
-    std::vector<T> result(count);
+    std::vector<T> result;
     T step = (end - start) / count;
     for (T x = start; x < end; x += step) {
         result.push_back(x);
@@ -36,11 +36,11 @@ inline std::vector<T> linspace(T start, T end, __uint32_t count) {
 }
 
 
-Smooth3DFunction getRandomFunction(__uint32_t nx, __uint32_t nz) {
-    auto xPoints = linspace(0.0f, 10.0f, nx);
-    auto zPoints = linspace(0.0f, 10.0f, nz);
-    std::vector<Vertex3D> vertices(nx * nz);
-    std::vector<__uint32_t> indices(nx * nz);
+Smooth3DFunction getRandomFunction(__uint32_t nx, __uint32_t nz, float minX = 0.0f, float maxX = 1.0f, float minZ = 0.0f, float maxZ = 1.0f) {
+    auto xPoints = linspace(minX, maxX, nx);
+    auto zPoints = linspace(minZ, maxZ, nz);
+    std::vector<Vertex3D> vertices;
+    std::vector<__uint32_t> indices;
 
     __uint32_t j = 0;
     for (float z: zPoints) {
@@ -61,7 +61,10 @@ Smooth3DFunction getRandomFunction(__uint32_t nx, __uint32_t nz) {
             indices.push_back(a);
             indices.push_back(c);
             indices.push_back(d);
+
+            ++i;
         }
+        ++j;
     }
 
     return {nx, nz, vertices, indices};

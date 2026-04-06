@@ -6,11 +6,7 @@
 #include <iostream>
 
 #include "functionHelpers/funcGen.h"
-#include "data.h"
  
-// ─────────────────────────────────────────────
-// Minimal math types
-// ─────────────────────────────────────────────
 struct Vec3 { float x, y, z; };
 struct Vec4 { float x, y, z, w; };
 struct Projected { float px, py, ndcZ, w; };
@@ -165,6 +161,7 @@ void drawLabel(sf::RenderWindow& win, const sf::Font& font,
 int main()
 {
     constexpr unsigned W = 900, H = 700;
+    const __uint32_t nx = 100, nz = 100;
     const float draggingSpeed = 0.007f;
     sf::RenderWindow window(sf::VideoMode({W, H}), "Adam optimizer work visualization");
     window.setFramerateLimit(60);
@@ -200,10 +197,51 @@ int main()
     const sf::Color colZ(60,  130, 220);  // blue
     const sf::Color colGrid(60, 60, 60);
 
-    Smooth3DFunction originalFunction = getRandomFunction(10, 10);
+    Smooth3DFunction originalFunction = getRandomFunction(nx, nz, 0.0f, 1.0f, 0.0f, 1.0f);
     std::vector<Projected> functionProjectedPoints(originalFunction.nx * originalFunction.nz);
-    for (auto vertex: originalFunction.vertices) {
-        std::cout << vertex.x << " " << vertex.y << " " << vertex.z << "\n";
+    // for (auto vertex: originalFunction.vertices) {
+    //     std::cout << vertex.x << " " << vertex.y << " " << vertex.z << "\n";
+    // }
+    // If we have nx * nz points we may treat it as a grid with (nx - 1) * (nz - 1) rectangles
+    // Each rectangle can be tiled with two trianles
+    // Let's call points of each rectangle a, b, c and d:
+    // a------------b
+    // |            |
+    // |            |
+    // |            |
+    // d------------c
+    // in clockwise order
+    // We are going to prepare all points in order of how it going to be used during render
+    // at rendering stage we will use View and Project matrices to map coordinates from World's coordinate system to out window 2D coordinates
+    std::vector<Vec3> functionPoints;
+    float maxY = std::numeric_limits<float>::lowest();
+    float minY = std::numeric_limits<float>::max();
+    std::cout << "Vertices:\n";
+    for (__uint32_t i = 0; i < (nx - 1) * (nz - 1); ++i) {
+        // i is a rectangle index
+        __uint32_t ai = i % (nx - 1) + (i / (nx - 1) * nx);
+        __uint32_t bi = i % (nx - 1) + 1 + (i / (nx - 1) * nx);
+        __uint32_t ci = i % (nx - 1) + 1 + ((i / (nx - 1) + 1) * nx);
+        __uint32_t di = i % (nx - 1) + ((i / (nx - 1) + 1) * nx);
+        Vertex3D a = originalFunction.vertices[ai];
+        Vertex3D b = originalFunction.vertices[bi];
+        Vertex3D c = originalFunction.vertices[ci];
+        Vertex3D d = originalFunction.vertices[di];
+        
+        functionPoints.push_back({a.x, a.y, a.z});
+        functionPoints.push_back({b.x, b.y, b.z});
+        functionPoints.push_back({c.x, c.y, c.z});
+
+        functionPoints.push_back({c.x, c.y, c.z});
+        functionPoints.push_back({d.x, d.y, d.z});
+        functionPoints.push_back({a.x, a.y, a.z});
+
+        float currentMaxY = std::max(std::max(std::max(a.y, b.y), c.y), d.y);
+        float currentMinY = std::min(std::min(std::min(a.y, b.y), c.y), d.y);
+        if (currentMaxY > maxY)
+            maxY = currentMaxY;
+        if (currentMinY < minY)
+            minY = currentMinY;
     }
  
     while (window.isOpen())
@@ -326,23 +364,25 @@ int main()
             window.draw(hud);
         }
 
-        for (__uint32_t i = 0; i < originalFunction.indices.size(); i += 3) {
-            Vertex3D vertex1 = originalFunction.vertices[originalFunction.indices[i]];
-            Vertex3D vertex2 = originalFunction.vertices[originalFunction.indices[i + 1]];
-            Vertex3D vertex3 = originalFunction.vertices[originalFunction.indices[i + 2]];
+        for (__uint32_t i = 0; i < functionPoints.size(); i += 3) {
+            auto a = functionPoints[i];
+            auto b = functionPoints[i + 1];
+            auto c = functionPoints[i + 2];
             
-            Projected vp1 = project({vertex1.x, vertex1.y, vertex1.z}, view, proj, W, H);
-            Projected vp2 = project({vertex2.x, vertex2.y, vertex2.z}, view, proj, W, H);
-            Projected vp3 = project({vertex3.x, vertex3.y, vertex3.z}, view, proj, W, H);
+            Projected vp1 = project({a.x, a.y, a.z}, view, proj, W, H);
+            Projected vp2 = project({b.x, b.y, b.z}, view, proj, W, H);
+            Projected vp3 = project({c.x, c.y, c.z}, view, proj, W, H);
             
             sf::VertexArray triangle(sf::PrimitiveType::Triangles, 3);
             triangle[0].position = sf::Vector2f(vp1.px, vp1.py);
             triangle[1].position = sf::Vector2f(vp3.px, vp2.py);
             triangle[2].position = sf::Vector2f(vp2.px, vp3.py);
 
-            triangle[0].color = sf::Color::Red;
-            triangle[1].color = sf::Color::Blue;
-            triangle[2].color = sf::Color::Green;
+            float t = (a.y - minY) / (maxY - minY);
+            std::uint8_t brightness = static_cast<std::uint8_t>(t * 255);
+            triangle[0].color = sf::Color(brightness, brightness, brightness, 255);
+            triangle[1].color = sf::Color(brightness, brightness, brightness, 255);
+            triangle[2].color = sf::Color(brightness, brightness, brightness, 255);
 
             window.draw(triangle);
         }

@@ -243,6 +243,11 @@ int main()
         if (currentMinY < minY)
             minY = currentMinY;
     }
+    auto colorFromY = [&](float y) {
+        float t = (y - minY) / (maxY - minY);
+        std::uint8_t b = static_cast<std::uint8_t>(t * 255);
+        return sf::Color(b, b, b, 255);
+    };
  
     while (window.isOpen())
     {
@@ -375,14 +380,12 @@ int main()
             
             sf::VertexArray triangle(sf::PrimitiveType::Triangles, 3);
             triangle[0].position = sf::Vector2f(vp1.px, vp1.py);
-            triangle[1].position = sf::Vector2f(vp3.px, vp2.py);
-            triangle[2].position = sf::Vector2f(vp2.px, vp3.py);
+            triangle[1].position = sf::Vector2f(vp2.px, vp2.py);
+            triangle[2].position = sf::Vector2f(vp3.px, vp3.py);
 
-            float t = (a.y - minY) / (maxY - minY);
-            std::uint8_t brightness = static_cast<std::uint8_t>(t * 255);
-            triangle[0].color = sf::Color(brightness, brightness, brightness, 255);
-            triangle[1].color = sf::Color(brightness, brightness, brightness, 255);
-            triangle[2].color = sf::Color(brightness, brightness, brightness, 255);
+            triangle[0].color = colorFromY(a.y);
+            triangle[1].color = colorFromY(b.y);
+            triangle[2].color = colorFromY(c.y);
 
             window.draw(triangle);
         }

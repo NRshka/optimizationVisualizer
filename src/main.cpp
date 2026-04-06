@@ -6,6 +6,7 @@
 #include <iostream>
 
 #include "functionHelpers/funcGen.h"
+#include "optim/losses.h"
  
 struct Vec3 { float x, y, z; };
 struct Vec4 { float x, y, z, w; };
